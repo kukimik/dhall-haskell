@@ -14,6 +14,7 @@
 module Dhall.Docs.Html
     ( dhallFileToHtml
     , textFileToHtml
+    , markdownFileToHtml
     , indexToHtml
     , DocParams(..)
     ) where
@@ -78,6 +79,28 @@ dhallFileToHtml filePath contents expr examples header params@DocParams{..} =
     clipboardText = fold baseImportUrl <> htmlTitle
 
 -- | Generates an @`Html` ()@ with all the information about a dhall file
+markdownFileToHtml
+    :: Path Rel File            -- ^ Source file name, used to extract the title
+    -> Html ()                  -- ^ Contents of the file
+    -> DocParams                -- ^ Parameters for the documentation
+    -> Html ()
+markdownFileToHtml filePath contents params@DocParams{..} =
+    doctypehtml_ $ do
+        headContents htmlTitle params
+        body_ $ do
+            navBar params
+            mainContainer $ do
+                setPageTitle params NotIndex breadcrumb
+                copyToClipboardButton clipboardText
+                br_ []
+                h3_ "Contents"
+                div_ [] (contents)
+  where
+    breadcrumb = relPathToBreadcrumb filePath
+    htmlTitle = breadCrumbsToText breadcrumb
+    clipboardText = fold baseImportUrl <> htmlTitle
+
+-- | Generates an @`Html` ()@ with all the information about a dhall file
 textFileToHtml
     :: Path Rel File            -- ^ Source file name, used to extract the title
     -> Text                     -- ^ Contents of the file
@@ -93,7 +116,7 @@ textFileToHtml filePath contents params@DocParams{..} =
                 copyToClipboardButton clipboardText
                 br_ []
                 h3_ "Source"
-                div_ [class_ "source-code"] (toHtml contents)
+                div_ [class_ "source-code"] $ pre_ (toHtml contents)
   where
     breadcrumb = relPathToBreadcrumb filePath
     htmlTitle = breadCrumbsToText breadcrumb

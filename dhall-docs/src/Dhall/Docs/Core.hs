@@ -167,6 +167,7 @@ data FileType
           -- ^ Examples extracted from assertions in the file
         , fileComments :: FileComments
         }
+    | MarkdownFile
     | TextFile
     deriving (Show)
 
@@ -186,6 +187,11 @@ getAllRenderedFiles =
     hasDhallExtension absFile = case Path.splitExtension absFile of
         Nothing -> False
         Just (_, ext) -> ext == ".dhall"
+
+    hasMarkdownExtension :: Path Rel File -> Bool
+    hasMarkdownExtension absFile = case Path.splitExtension absFile of
+        Nothing -> False
+        Just (_, ext) -> ext == ".md"        -- TODO: refactor
 
     validFiles :: (Path Rel File, ByteString) -> [(Path Rel File, Text)] -> [(Path Rel File, Text)]
     validFiles (relFile, content) xs = case Data.Text.Encoding.decodeUtf8' content of
@@ -220,6 +226,13 @@ getAllRenderedFiles =
             Left ParseError{..} | hasDhallExtension relFile -> do
                 Writer.tell [InvalidDhall unwrap]
                 return Nothing
+
+            Left ParseError{} | hasMarkdownExtension relFile -> do
+                return $ Just $ RenderedFile -- TOOD: check if markdown parses, remember the parsed markdown (or the html)
+                    { contents
+                    , path = relFile
+                    , fileType = MarkdownFile
+                    }
 
             Left _ -> do
                 return $ Just $ RenderedFile
@@ -344,6 +357,23 @@ makeHtml baseImportUrl packageName characterSet RenderedFile{..} = do
                         DocParams{ relativeResourcesPath, packageName, characterSet, baseImportUrl }
 
             return htmlAsText
+
+        MarkdownFile -> do
+            let renderedContents = markdownToHtml path contents
+            let htmlAsText
+                    | Right html <- renderedContents =
+                        Text.Lazy.toStrict $ Lucid.renderText $ markdownFileToHtml
+                            path
+                            html
+                            DocParams{ relativeResourcesPath, packageName, characterSet, baseImportUrl }
+                    | otherwise = 
+                        Text.Lazy.toStrict $ Lucid.renderText $ textFileToHtml
+                            path
+                            contents
+                            DocParams{ relativeResourcesPath, packageName, characterSet, baseImportUrl }
+
+            return htmlAsText
+
         TextFile -> do
             let htmlAsText =
                     Text.Lazy.toStrict $ Lucid.renderText $ textFileToHtml
@@ -421,6 +451,7 @@ createIndexes baseImportUrl packageName characterSet renderedFiles = map toIndex
           where
             m = case fileType of
                 DhallFile{..} -> mType
+                MarkdownFile  -> Nothing
                 TextFile      -> Nothing
 
         html = indexToHtml
