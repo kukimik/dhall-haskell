@@ -387,10 +387,16 @@ normalizeWithM ctx e0 = loop (Syntax.denote e0)
                         loop (TextLit (Chunks [] text))
                       where
                         text = Eval.dateShow date
+                    App DateYear (DateLiteral date) -> pure (NaturalLit (Eval.getYear date))
+                    App DateMonth (DateLiteral date) -> pure (NaturalLit (Eval.getMonth date))
+                    App DateDay (DateLiteral date) -> pure (NaturalLit (Eval.getDay date))
                     App TimeShow (TimeLiteral time precision) ->
                         loop (TextLit (Chunks [] text))
                       where
                         text = Eval.timeShow time precision
+                    App TimeHour (TimeLiteral time _) -> pure (NaturalLit (Eval.getHour time))
+                    App TimeMinute (TimeLiteral time _) -> pure (NaturalLit (Eval.getMinute time))
+                    App TimeSecond (TimeLiteral time _) -> pure (NaturalLit (Eval.getSecond time))
                     App TimeZoneShow (TimeZoneLiteral timezone) ->
                         loop (TextLit (Chunks [] text))
                       where
